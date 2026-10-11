@@ -1,57 +1,43 @@
-
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0"
-    />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
 
     <style>
         html, body {
-            margin: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            background: #1e293b;
+            margin: 0;
+            background: #182235;
+            color: white;
+            font-family: sans-serif;
         }
 
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #square {
+            width: 120px;
+            height: 120px;
+            background: #00ff88;
+            border-radius: 16px;
         }
     </style>
 </head>
-
 <body>
-<canvas id="gpuCanvas"></canvas>
+<h2>Android WebView Test</h2>
+<div id="square"></div>
+<p id="status">HTML is visible</p>
 
 <script>
-
-    const canvas = document.getElementById("gpuCanvas");
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = 400;
-    canvas.height = 400;
-
-    ctx.fillStyle = "#00ff00";
-    ctx.fillRect(0, 0, 400, 400);
-
-    ctx.fillStyle = "#ff0000";
-    ctx.beginPath();
-    ctx.moveTo(200, 50);
-    ctx.lineTo(50, 350);
-    ctx.lineTo(350, 350);
-    ctx.closePath();
-    ctx.fill();
-
-    if (window.AndroidBridge) {
-        window.AndroidBridge.updateStatus(
-            "Canvas 2D berhasil digambar"
-        );
-    }
+    document.getElementById("status").textContent =
+        "JavaScript is working";
 </script>
 </body>
 </html>

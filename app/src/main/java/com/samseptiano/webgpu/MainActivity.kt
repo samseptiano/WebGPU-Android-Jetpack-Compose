@@ -1,34 +1,37 @@
 package com.samseptiano.webgpu
 
-import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Bundle
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.webkit.WebViewAssetLoader
-import androidx.webkit.WebViewClientCompat
+import coil.compose.rememberAsyncImagePainter
 
 class MainActivity : ComponentActivity() {
 
@@ -37,192 +40,110 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                var gpuStatus by remember {
-                    mutableStateOf("Menyiapkan WebGPU...")
-                }
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF101827)
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = "WebGPU Demo",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = Color.White
-                        )
-
-                        Text(
-                            text = gpuStatus,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF93C5FD)
-                        )
-
-                        WebGPUView(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            onStatusChanged = { status ->
-                                gpuStatus = status
-                            }
-                        )
-                    }
+                    ImageTo3DScreen()
                 }
             }
         }
     }
 }
 
-
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun WebGPUView(
-    modifier: Modifier = Modifier,
-    onStatusChanged: (String) -> Unit
-) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val currentStatusCallback by androidx.compose.runtime
-        .rememberUpdatedState(onStatusChanged)
+private fun ImageTo3DScreen() {
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var generateRequested by remember { mutableStateOf(false) }
 
-    val assetLoader = remember(context) {
-        androidx.webkit.WebViewAssetLoader.Builder()
-            .addPathHandler(
-                "/assets/",
-                androidx.webkit.WebViewAssetLoader.AssetsPathHandler(context)
-            )
-            .build()
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        selectedImageUri = uri
+        generateRequested = false
     }
 
-    val webView = remember(context) {
-        WebView(context).apply {
-            setBackgroundColor(android.graphics.Color.MAGENTA)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "2D Image to 3D",
+            style = MaterialTheme.typography.headlineMedium
+        )
 
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
+        Text(
+            text = "Choose an image and turn it into a 3D relief.",
+            style = MaterialTheme.typography.bodyMedium
+        )
 
-            WebView.setWebContentsDebuggingEnabled(true)
+        OutlinedButton(
+            onClick = { imagePicker.launch("image/*") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Upload Image")
+        }
 
-            addJavascriptInterface(
-                object {
-                    @JavascriptInterface
-                    fun updateStatus(message: String) {
-                        post {
-                            currentStatusCallback(message)
-                        }
-                    }
-                },
-                "AndroidBridge"
+        selectedImageUri?.let { uri ->
+            Image(
+                painter = rememberAsyncImagePainter(uri),
+                contentDescription = "Selected image preview",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Fit
             )
 
-            webChromeClient = object : WebChromeClient() {
-                override fun onConsoleMessage(
-                    message: android.webkit.ConsoleMessage
-                ): Boolean {
-                    android.util.Log.d(
-                        "WebGPU-Debug",
-                        "${message.message()} " +
-                                "(${message.sourceId()}:${message.lineNumber()})"
-                    )
-                    return true
-                }
+            Text(
+                text = "Image selected successfully",
+                style = MaterialTheme.typography.bodySmall
+            )
 
-                override fun onReceivedTitle(
-                    view: WebView,
-                    title: String
-                ) {
-                    android.util.Log.d(
-                        "WebGPU-Debug",
-                        "Page title: $title"
-                    )
-                }
+            Button(
+                onClick = { generateRequested = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Generate 3D")
             }
-
-            object : WebViewClientCompat() {
-                override fun shouldInterceptRequest(
-                    view: WebView,
-                    request: android.webkit.WebResourceRequest
-                ): android.webkit.WebResourceResponse? {
-                    return assetLoader.shouldInterceptRequest(request.url)
-                }
-
-                override fun onPageStarted(
-                    view: WebView,
-                    url: String,
-                    favicon: android.graphics.Bitmap?
-                ) {
-                    currentStatusCallback("Memuat: $url")
-                    android.util.Log.d("WebGPU-Debug", "Started: $url")
-                }
-
-                override fun onPageFinished(
-                    view: WebView,
-                    url: String
-                ) {
-                    android.util.Log.d("WebGPU-Debug", "Finished: $url")
-
-                    view.evaluateJavascript(
-                        """
-                                (function() {
-                                    const c = document.getElementById('gpuCanvas');
-                                    const r = c ? c.getBoundingClientRect() : null;
-                                    return JSON.stringify({
-                                        href: location.href,
-                                        readyState: document.readyState,
-                                        innerWidth: window.innerWidth,
-                                        innerHeight: window.innerHeight,
-                                        bodyWidth: document.body?.clientWidth,
-                                        bodyHeight: document.body?.clientHeight,
-                                        canvasFound: !!c,
-                                        canvasWidth: c?.width,
-                                        canvasHeight: c?.height,
-                                        canvasRectWidth: r?.width,
-                                        canvasRectHeight: r?.height,
-                                        gpuAvailable: !!navigator.gpu
-                                    });
-                                })();
-                                """.trimIndent()
-                    ) { result ->
-                        android.util.Log.d(
-                            "WebGPU-Debug",
-                            "DOM diagnostics: $result"
-                        )
-                        currentStatusCallback("HTML redered")
-                    }
-                }
-            }.also { webViewClient = it }
-
-            loadUrl(
-                "https://appassets.androidplatform.net/assets/index.html"
+        } ?: Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF202124)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Upload an image to get started",
+                color = Color.White
             )
         }
-    }
 
-    androidx.compose.foundation.layout.Box(
-        modifier = modifier
-            .background(Color.Magenta)
-    ) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { webView },
-            update = { view ->
-                view.layoutParams = android.view.ViewGroup.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                )
-            }
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "3D Preview",
+            style = MaterialTheme.typography.titleMedium
         )
-    }
 
-    DisposableEffect(webView) {
-        onDispose {
-            webView.stopLoading()
-            webView.removeJavascriptInterface("AndroidBridge")
-            webView.destroy()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF111318))
+        ) {
+            WebGpuSurface(
+                modifier = Modifier.fillMaxSize(),
+                imageUri = selectedImageUri,
+                generateRequested = generateRequested,
+                onGenerationHandled = {
+                    generateRequested = false
+                }
+            )
         }
     }
 }
